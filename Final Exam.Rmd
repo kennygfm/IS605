@@ -298,7 +298,7 @@ plot(m3)
 
 We will use the WLS for the Kaggle submission
 ```{r}
-test_data <- read.csv(file="~/Downloads/Linear Algebra/test.csv", head=TRUE)
+test_data <- read.csv(file="https://raw.githubusercontent.com/kennygfm/IS605/master/test.csv", head=TRUE)
 test_data$SalePrice <- predict(m2.wls,test_data)
 
 #convert NAs to the intercept
