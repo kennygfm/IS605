@@ -13,7 +13,7 @@ library(stats)
 library(boot)
 library(dplyr)
 
-raw <- read.csv(file="~/Downloads/Linear Algebra/train.csv", head=TRUE)
+raw <- read.csv(file="https://raw.githubusercontent.com/kennygfm/IS605/master/train.csv", head=TRUE)
 Y <- raw$SalePrice
 X <- raw$LotArea
 hp <- data.frame(Y,X)
@@ -245,6 +245,8 @@ upper
 #Empirical 95% CI
 quantile(X,0.025)
 quantile(X,0.975)
+```
+
 #Modeling.  
 
 Build some type of regression  model and submit your model to the competition board.  Provide your complete model summary and results with analysis.  Report your Kaggle.com  user name and score.
@@ -269,7 +271,7 @@ summary(m2)
 
 We will review the model a bit looking at residuals:
 ```{r}
-hist(m$residuals)
+hist(m2$residuals)
 par(mfrow = c(2,2))
 plot(m2)
 ```
@@ -280,7 +282,7 @@ We can see there are issues with outliers, so we can attempt some weighted least
 m2.wls <- rlm(SalePrice ~ LotArea+LandContour+LotConfig+LandSlope+Neighborhood+Condition2+OverallQual+OverallCond+RoofStyle+RoofMatl+MasVnrArea+
            ExterQual+BsmtQual+BsmtExposure+BsmtFinSF1+BsmtFinSF2+BsmtUnfSF+X1stFlrSF+X2ndFlrSF+KitchenQual+GarageArea+PoolArea+SaleType, data = raw)
 summary(m2.wls)
-pplot(m2.wls)
+plot(m2.wls)
 ```
 
 Visually the impact is nearly the same, but our residual standard error was indeed reduced to 15710. Let's remove some of the residuals, obervations 524, 826, 1183 and see the results as well.
