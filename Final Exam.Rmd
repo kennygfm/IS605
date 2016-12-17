@@ -1,0 +1,310 @@
+---
+title: "IS 605 - Final"
+author: "Ken Markus"
+date: "12/10/2016"
+output: html_document
+---
+
+#Part 1: Probability
+
+```{r}
+rm(list=ls()) 
+library(stats)
+library(boot)
+library(dplyr)
+
+raw <- read.csv(file="~/Downloads/Linear Algebra/train.csv", head=TRUE)
+Y <- raw$SalePrice
+X <- raw$LotArea
+hp <- data.frame(Y,X)
+
+x <- quantile(X, 0.75)
+y <- quantile(Y, 0.5)
+P_X_greaterthan_x <- 0.25
+P_X_lessthan_x <- 1 - P_X_greaterthan_x
+P_Y_greaterthan_y <- 0.5
+P_Y_lessthan_y <- 1 - P_Y_greaterthan_y
+```
+
+##Calculate as a minimum the below probabilities a through d. 
+```{r}
+#a. P(X>x | Y>y)
+hp_Ygreaterthan_y <- filter(hp, Y > y)
+xs <- filter(hp_Ygreaterthan_y, X > x)
+P_Xgreaterthanx_givenYgreaterthany <- nrow(xs) / nrow(hp_Ygreaterthan_y)
+P_Xgreaterthanx_givenYgreaterthany
+
+#b.  P(X>x, Y>y)
+hp_Xgreatherthanx_Ygreatherthany <- filter(hp, X > x, Y > y)
+P_Xgreatherthanx_Ygreatherthany <- nrow(hp_Xgreatherthanx_Ygreatherthany) / nrow(hp)
+P_Xgreatherthanx_Ygreatherthany
+
+#c.  P(X<x | Y>y)
+xs2 <- filter(hp_Ygreaterthan_y, X <= x)
+P_Xlessthanx_givenYgreaterthany <- nrow(xs2) / nrow(hp_Ygreaterthan_y)
+P_Xlessthanx_givenYgreaterthany
+```
+
+Make a table of counts:
+```{r}
+#Lets; find the other three probabilities first
+hp_Xgreatherthanx_Ylessthany <- filter(hp, X > x, Y <= y)
+P_Xgreatherthanx_Ylessthany <- nrow(hp_Xgreatherthanx_Ylessthany) / nrow(hp)
+P_Xgreatherthanx_Ylessthany
+
+hp_Xlessthanx_Ylessthany <- filter(hp, X <= x, Y <= y)
+P_Xlessthanx_Ylessthany <- nrow(hp_Xlessthanx_Ylessthany) / nrow(hp)
+P_Xlessthanx_Ylessthany
+
+hp_Xlessthanx_Ygreaterthany <- filter(hp, X <= x, Y > y)
+P_Xlessthanx_Ygreaterthany <- nrow(hp_Xlessthanx_Ygreaterthany) / nrow(hp)
+P_Xlessthanx_Ygreaterthany
+
+#Ignore the below for now...
+hp_Ylessthan_y <- filter(hp, Y <= y)
+xs <- filter(hp_Ylessthan_y, X > x)
+P_Xgreaterthanx_givenYlessthany <- nrow(xs) / nrow(hp_Ylessthan_y)
+P_Xgreaterthanx_givenYlessthany
+
+xs2 <- filter(hp_Ylessthan_y, X <= x)
+P_Xlessthanx_givenYlessthany <- nrow(xs2) / nrow(hp_Ylessthan_y)
+P_Xlessthanx_givenYlessthany
+```
+<table border=1>
+<tr>
+<td>x/y</td>
+<td>less than 2d quartile</td>
+<td>greater than 2d quartile</td>
+<td>Total</td>
+</tr>
+<tr>
+<td>less than 3d quartile</td>
+<td align=right>`r P_Xlessthanx_Ylessthany`</td>
+<td align=right>`r P_Xlessthanx_Ygreaterthany`</td>
+<td align=right>`r P_Xlessthanx_Ylessthany + P_Xlessthanx_Ygreaterthany` </td>
+</tr>
+<tr>
+<td>greater than 3d quartile</td>
+<td align=right>`r P_Xgreatherthanx_Ylessthany`</td>
+<td align=right>`r P_Xgreatherthanx_Ygreatherthany`</td>
+<td>`r P_Xgreatherthanx_Ylessthany+P_Xgreatherthanx_Ygreatherthany`</td>
+</tr>
+<tr>
+<td>Total</td>
+<td align=right>`r P_Xlessthanx_Ylessthany+P_Xgreatherthanx_Ylessthany`</td>
+<td alight=right>`r P_Xlessthanx_Ygreaterthany+P_Xgreatherthanx_Ygreatherthany`</td>
+<td align=right>`r P_Xlessthanx_Ylessthany + P_Xlessthanx_Ygreaterthany+P_Xgreatherthanx_Ylessthany+P_Xgreatherthanx_Ygreatherthany`</td>
+</tr>
+</table>
+
+*Does splitting the training data in this fashion make them independent? Let A be the new variable counting those observations above the 3d quartile for X, and let B be the new variable counting those observations above the 2d quartile for Y.    Does P(A|B)=P(A)P(B)?   Check mathematically, and then evaluate by running a Chi Square test for association.*
+
+From our earlier result we know that P(A|B) = `r P_Xgreaterthanx_givenYgreaterthany`, which is close but not exactly `r 0.5 * 0.75`
+
+However, let's perform a Chi Square test
+```{r}
+library(MASS)
+chisq.test(hp)
+```
+
+The results show a very low p-value and thus we can say with great confidence that the data is independent.
+
+#Part 2: Descriptive and Inferential Statistics
+##Provide univariate descriptive statistics and appropriate plots for the training data set.
+```{r}
+summary(X)
+summary(Y)
+library(psych)
+describe(X)
+describe(Y)
+hist(X, breaks=100)
+hist(Y, breaks=100)
+```
+
+##Provide a scatterplot of X and Y.  
+```{r}
+plot(X,Y)
+```
+
+##Provide a 95% CI for the difference in the mean of the variables.  
+```{r}
+Z <- Y-X
+a <- mean(Z)
+s <- sd(Z)
+n <- length(Z)
+
+error <- qnorm(0.975)*s/sqrt(n)
+left <- a-error
+right <- a+error
+left
+right
+```
+
+##Derive a correlation matrix for two of the quantitative variables you selected. 
+```{r}
+cor_hp <- cor(hp)
+round(cor_hp,2)
+```
+
+##Test the hypothesis that the correlation between these variables is 0 and provide a 99% confidence interval.  Discuss the meaning of your analysis.
+```{r}
+#sample coefficient
+r <- cor(X,Y)
+
+#expected coefficient
+rho <- 0
+
+#standard error
+se <- sqrt((1-r^2) / (n-2))
+t <- (r-rho) / se
+intervals <- qt(c(.005, .995), df=n-1)
+left <- r + intervals[1]* se
+right <- r + intervals[2] * se
+left
+right
+```
+
+Given that 0 is not within our 99% confidence interval we can reject the null hypothesis and thus state that the is indeed a relationship between our two variables.
+
+#Linear Algebra and Correlation. 
+Invert your correlation matrix. (This is known as the precision matrix and contains variance inflation factors on the diagonal.) 
+```{r}
+m <- matrix(round(cor_hp,2), nrow=2)
+m_invert <- solve(m)
+m_invert
+```
+
+Multiply the correlation matrix by the precision matrix, and then multiply the precision matrix by the correlation matrix. 
+
+```{r}
+m %*% m_invert
+m_invert %*% m
+```
+
+Conduct principle components analysis (research this!)  and interpret.  Discuss.
+```{r}
+library(stats)
+hp.pca <- prcomp(hp, center = TRUE, scale = TRUE)
+hp.pca
+summary(hp.pca)
+```
+
+#Calculus-based probability & statistics
+Many times, it makes sense to fit a closed form distribution to data.  For your variable that is skewed to the right, shift it so that the minimum value is above zero.  Then load the MASS package and run fitdistr to fit an exponential probability density function.  (See  https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/fitdistr.html ).  
+
+Find the optimal value of λ for this distribution, and then take 1000 samples from this exponential distribution using this value (e.g., rexp(1000, λ)).  Plot a histogram and compare it with a histogram of your original variable. Using the exponential pdf, find the 5th and 95th percentiles using the cumulative distribution function (CDF).
+
+```{r}
+#The minimum value is already above zero.
+library(MASS)
+fit <- fitdistr(X, "exponential")
+
+#optimal value for λ:
+lambda <- fit$estimate
+lambda
+
+samples <- rexp(1000,lambda)
+hist(samples, breaks=100)
+
+lower <- qexp(.025, rate=lambda)
+upper <- qexp(0.975, rate=lambda)
+```
+
+*The lower bound is `r lower`.*
+*The upper bound is `r upper`*
+
+Also generate a 95% confidence interval from the empirical data, assuming normality.  Finally, provide the empirical 5th percentile and 95th percentile of the data.  Discuss.
+```{r}
+#Not sure if empirical data is for the sample generated our our original vector X.
+#For first portion will assume it is the sample
+sample_mean <- mean(samples)
+sample_sd <- sd(samples)
+lower <- qnorm(.025,sample_mean,sample_sd)
+upper <- qnorm(.975, sample_mean, sample_sd)
+lower
+upper
+```
+
+*The lower bound is `r lower`.*
+*The upper bound is `r upper`*
+
+```{r}
+#Now assume "empirical data" is for vector X
+sample_mean <- mean(X)
+sample_sd <- sd(X)
+lower <- qnorm(.025,sample_mean,sample_sd)
+upper <- qnorm(.975, sample_mean, sample_sd)
+lower
+upper
+```
+
+*The lower bound is `r lower`.*
+*The upper bound is `r upper`*
+
+```{r}
+#Empirical 95% CI
+quantile(X,0.025)
+quantile(X,0.975)
+#Modeling.  
+
+Build some type of regression  model and submit your model to the competition board.  Provide your complete model summary and results with analysis.  Report your Kaggle.com  user name and score.
+```{r}
+#We will apply the backward regression technique upon all variables excepting those with significant NAs
+m1 <- lm(SalePrice ~ MSSubClass+MSZoning+LotArea+Street+LotShape+LandContour+Utilities+LotConfig+
+           LandSlope+Neighborhood+Condition1+Condition2+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+
+           RoofMatl+Exterior1st+Exterior2nd+MasVnrType+MasVnrArea+ExterQual+ExterCond+Foundation+BsmtQual+BsmtCond+BsmtExposure+
+           BsmtFinType1+BsmtFinSF1+BsmtFinType2+BsmtFinSF2+BsmtUnfSF+TotalBsmtSF+Heating+HeatingQC+CentralAir+Electrical+X1stFlrSF+
+           X2ndFlrSF+LowQualFinSF+GrLivArea+BsmtFullBath+BsmtHalfBath+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+
+           Functional+Fireplaces+FireplaceQu+GarageType+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+
+           WoodDeckSF+OpenPorchSF+EnclosedPorch+X3SsnPorch+ScreenPorch+PoolArea+MiscVal+MoSold+YrSold+SaleType+SaleCondition, data = raw)
+summary(m1)
+#Results yield an adjusted R-squared of 0.8904, quite good! A standard error of 28590
+#From initial results we will remove all variables with insignificant p-values
+
+m2 <- lm(SalePrice ~ LotArea+LandContour+LotConfig+LandSlope+Neighborhood+Condition2+OverallQual+OverallCond+RoofStyle+RoofMatl+MasVnrArea+
+           ExterQual+BsmtQual+BsmtExposure+BsmtFinSF1+BsmtFinSF2+BsmtUnfSF+X1stFlrSF+X2ndFlrSF+KitchenQual+GarageArea+PoolArea+SaleType, data = raw)
+summary(m2)
+#Results yield an adjusted R-square 0.8992 and a residual error of 25170 - an improvement and simpler model!
+```
+
+We will review the model a bit looking at residuals:
+```{r}
+hist(m$residuals)
+par(mfrow = c(2,2))
+plot(m2)
+```
+
+We can see there are issues with outliers, so we can attempt some weighted least squares to reduces the residual error.
+
+```{r}
+m2.wls <- rlm(SalePrice ~ LotArea+LandContour+LotConfig+LandSlope+Neighborhood+Condition2+OverallQual+OverallCond+RoofStyle+RoofMatl+MasVnrArea+
+           ExterQual+BsmtQual+BsmtExposure+BsmtFinSF1+BsmtFinSF2+BsmtUnfSF+X1stFlrSF+X2ndFlrSF+KitchenQual+GarageArea+PoolArea+SaleType, data = raw)
+summary(m2.wls)
+pplot(m2.wls)
+```
+
+Visually the impact is nearly the same, but our residual standard error was indeed reduced to 15710. Let's remove some of the residuals, obervations 524, 826, 1183 and see the results as well.
+```{r}
+raw2 <- raw[-524,]
+killrows <- c(524,826,1183)
+raw2 <- raw[-killrows,]
+m3 <- lm(SalePrice ~ LotArea+LandContour+LotConfig+LandSlope+Neighborhood+Condition2+OverallQual+OverallCond+RoofStyle+RoofMatl+MasVnrArea+
+           ExterQual+BsmtQual+BsmtExposure+BsmtFinSF1+BsmtFinSF2+BsmtUnfSF+X1stFlrSF+X2ndFlrSF+KitchenQual+GarageArea+PoolArea+SaleType, data = raw2)
+summary(m3)
+plot(m3)
+```
+
+We will use the WLS for the Kaggle submission
+```{r}
+test_data <- read.csv(file="~/Downloads/Linear Algebra/test.csv", head=TRUE)
+test_data$SalePrice <- predict(m2.wls,test_data)
+
+#convert NAs to the intercept
+sp_median <- median(raw$SalePrice)
+test_data$SalePrice[is.na(test_data$SalePrice)] <- sp_median
+output <- dplyr::select(test_data, Id,SalePrice)
+write.csv(output, file = "wls_kgfm.csv", append = FALSE, quote = TRUE, 
+            eol = "\n", na = "NA", dec = ".", row.names = FALSE,
+            col.names = TRUE, qmethod = c("escape", "double"),
+            fileEncoding = "")
+#Kaggle is submitted under username "kennygfm"
